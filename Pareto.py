@@ -35,9 +35,8 @@ def normalize(self, aspirations: list[bool]):
     """ Normalizes values whose indexes in the transmitted list are false """
     for col, aspiration in enumerate(aspirations):
         if not aspiration:
-            for row in self.index.values:
-                self.loc[row, self.columns.values[col]] = (
-                        1 / self.loc[row, self.columns.values[col]])
+            for row in range(self.shape[0]):
+                self.iloc[row, col] = (1 / self.iloc[row, col])
 
 
 def show(self, header: str, console_width: int):
