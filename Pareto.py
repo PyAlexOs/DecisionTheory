@@ -16,19 +16,38 @@ TABLE = [['Mazda CX-5', 4.35, 7.1, 442, 156, 210],
 
 
 def main():
-    console_width = shutil.get_terminal_size().columns
     data = dict(zip(KEYS, [[TABLE[row][col]
                             for row in range(len(TABLE))]
                            for col in range(len(TABLE[0]))][1:]))
 
     dataframe = pd.DataFrame(data=data, index=[f'A{i}' for i in range(1, 11)])
-    dataframe.show("Alternatives", console_width)
+    dataframe.show("Alternatives")
 
     aspirations = [False, False, True, True, True]
     dataframe.normalize(aspirations)
-    dataframe.show("Normalized", console_width)
+    dataframe.show("Normalized")
 
-    print(dataframe.iloc[0])
+    dataframe.optimize()
+
+
+def optimize(self):
+    def compare() -> list[list[...]]:
+        result = [["x" for _ in range(self.shape[0])] for _ in range(self.shape[0])]
+        for alt_1 in range(self.shape[0]):
+            for alt_2 in range(alt_1 + 1, self.shape[0]):
+                if (self.iloc[alt_1].values >= self.iloc[alt_2].values).all():
+                    result[alt_2][alt_1] = self.index.values[alt_1]
+                elif (self.iloc[alt_1].values <= self.iloc[alt_2].values).all():
+                    result[alt_2][alt_1] = self.index.values[alt_2]
+                else:
+                    result[alt_2][alt_1] = "н"
+
+        return result
+
+    compared = pd.DataFrame(compare(),
+                            columns=[f'A{i}' for i in range(1, 11)],
+                            index=[f'A{i}' for i in range(1, 11)])
+    compared.show("Pairwise comparison")
 
 
 def normalize(self, aspirations: list[bool]):
@@ -39,16 +58,19 @@ def normalize(self, aspirations: list[bool]):
                 self.iloc[row, col] = (1 / self.iloc[row, col])
 
 
-def show(self, header: str, console_width: int):
+def show(self, header: str):
     """ Prints dataframe with header """
+    console_width = shutil.get_terminal_size().columns
     filler = "-" * ((console_width - len(header)) // 2)
     print(f"\n{filler}{header}{filler}\n" + self.to_string())
 
 
 if __name__ == "__main__":
     import pandas as pd
+    import numpy as np
     import shutil
 
+    pd.DataFrame.optimize = optimize
     pd.DataFrame.normalize = normalize
     pd.DataFrame.show = show
     main()
