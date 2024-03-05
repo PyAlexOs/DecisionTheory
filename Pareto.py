@@ -1,3 +1,6 @@
+import pandas as pd
+import shutil
+
 KEYS = ["Стоимость машины",
         "Расход топлива",
         "Вместительность багажника",
@@ -27,21 +30,34 @@ def main():
     dataframe.normalize(aspirations)
     dataframe.show("Normalized")
 
-    elements = dataframe.optimize()
-    optimized = dataframe.iloc[elements]
+    optimized_elements = dataframe.optimize()
+    optimized = dataframe.iloc[optimized_elements]
     optimized.normalize(aspirations)
     optimized.show("Optimized")
 
-    elements = optimized.border_optimize({"bigger": [[4, 230]]})
-    if len(elements) > 0:
-        border_optimized = optimized.iloc[elements]
-        border_optimized.show("Border optimized")
-    else:
+    test_border_optimization(dataframe, optimized_elements)
+
+
+def test_border_optimization(dataframe: pd.DataFrame, optimized_elements: list[int]):
+    border_optimized_elements = dataframe.border_optimize(
+        {"bigger": [[4, 230]]}
+    )
+
+    if len(border_optimized_elements) == 0:
         print("Failed to optimize the set using boundaries")
+        return
+
+    border_optimized = dataframe.iloc[border_optimized_elements]
+    border_optimized.show("Border optimized")
+
+    elements = list(set(border_optimized_elements) & set(optimized_elements))
+    if len(elements) > 0:
+        dataframe.iloc[elements].show("Pareto- and border-optimized set intersection")
+    else:
+        print("\nPareto- and border-optimized set intersection is empty")
 
 
 def border_optimize(self, borders: dict[str, list[...]]) -> list[int]:
-    """ Narrows down the set of optimal options using borders """
     elements = set()
 
     if len(borders) == 0:
@@ -76,7 +92,6 @@ def border_optimize(self, borders: dict[str, list[...]]) -> list[int]:
 
 
 def optimize(self, show_comparison: bool = True) -> list[int]:
-    """ Finds the optimal Pareto set """
     elements = set()
 
     def compare() -> list[list[str]]:
@@ -104,7 +119,6 @@ def optimize(self, show_comparison: bool = True) -> list[int]:
 
 
 def normalize(self, aspirations: list[bool]):
-    """ Normalizes values whose indexes in the transmitted list are false """
     for col, aspiration in enumerate(aspirations):
         if not aspiration:
             for row in range(self.shape[0]):
@@ -112,16 +126,12 @@ def normalize(self, aspirations: list[bool]):
 
 
 def show(self, header: str = ""):
-    """ Prints dataframe with header """
     console_width = shutil.get_terminal_size().columns
     filler = "-" * ((console_width - len(header)) // 2)
     print(f"\n{filler}{header}{filler}\n" + self.to_string())
 
 
 if __name__ == "__main__":
-    import pandas as pd
-    import shutil
-
     pd.DataFrame.border_optimize = border_optimize
     pd.DataFrame.optimize = optimize
     pd.DataFrame.normalize = normalize
