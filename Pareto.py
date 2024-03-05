@@ -6,9 +6,9 @@ KEYS = ["Стоимость машины",
         "Вместительность багажника",
         "Мощность двигателя",
         "Клиренс"]
-TABLE = [['Mazda CX-5', 4.2, 7.1, 565, 165, 240],
-         ['Toyota Land Cruiser Prado', 4.3, 11.0, 550, 163, 235],
-         ['Audi A4', 4.1, 7.1, 570, 245, 245],
+TABLE = [['Mazda CX-5', 4.1, 7.1, 565, 165, 235],
+         ['Toyota Land Cruiser Prado', 4.1, 11.0, 550, 163, 235],
+         ['Audi A4', 4.1, 7.1, 570, 245, 235],
          ['Kia Sportage', 3.2, 8.2, 540, 150, 181],
          ['Volvo XC90', 5.6, 5.7, 721, 249, 235],
          ['Subaru Outback', 5.6, 7.3, 522, 188, 213],
@@ -16,6 +16,7 @@ TABLE = [['Mazda CX-5', 4.2, 7.1, 565, 165, 240],
          ['Mercedes GLC', 5.1, 5.5, 620, 197, 180],
          ['Jeep Wrangler', 4.9, 11.3, 142, 225, 220],
          ['УАЗ Патриот', 1.9, 11.2, 1130, 225, 225]]
+ASPIRATIONS = [False, False, True, True, True]
 
 
 def main():
@@ -26,38 +27,104 @@ def main():
     dataframe = pd.DataFrame(data=data, index=[f'A{i}' for i in range(1, 11)])
     dataframe.show("Alternatives")
 
-    aspirations = [False, False, True, True, True]
-    dataframe.normalize(aspirations)
+    dataframe.normalize(ASPIRATIONS)
     dataframe.show("Normalized")
 
-    optimized_elements = dataframe.optimize()
-    optimized = dataframe.iloc[optimized_elements]
-    optimized.normalize(aspirations)
-    optimized.show("Optimized")
-
-    test_border_optimization(dataframe, optimized_elements)
-
-
-def test_border_optimization(dataframe: pd.DataFrame, optimized_elements: list[int]):
-    border_optimized_elements = dataframe.border_optimize(
-        {"bigger": [[4, 230]]}
+    dataframe.border_optimization(
+        borders={"bigger": [[4, 230]]}
     )
 
+    """dataframe.sub_optimization(
+        borders={"bigger": [[4, 230]]},
+        key_criterion_index=3
+    )"""
+    """dataframe.lexicographic_optimization([4, 0, 1, 2, 3])"""
+
+
+def lexicographic_optimization(self,
+                               criterion_importance_index: list,
+                               show_result: bool = True) -> pd.DataFrame | None:
+    if len(set(criterion_importance_index)) != self.shape[1]:
+        raise ValueError("Wrong criterion importance list")
+
+    result = pd.DataFrame(self)
+    for criterion in criterion_importance_index:
+        if result.count().iloc[0] == 1:
+            break
+
+        best = result.loc[result.iloc[:, criterion].idxmax()]
+        for index, row in result.iterrows():
+            if row.iloc[criterion] < best.iloc[criterion]:
+                result.drop(index, inplace=True)
+                if result.count().iloc[0] == 1:
+                    break
+
+    if show_result:
+        result.normalize(ASPIRATIONS)
+        result.show("Lexicographic optimized")
+
+    return result
+
+
+def sub_optimization(self,
+                     borders: dict[str, list[...]],
+                     key_criterion_index: int,
+                     show_border_optimized: bool = True,
+                     show_result: bool = True) -> pd.DataFrame | None:
+    border_optimized_elements = self.get_optimal_range(borders)
     if len(border_optimized_elements) == 0:
         print("Failed to optimize the set using boundaries")
         return
 
-    border_optimized = dataframe.iloc[border_optimized_elements]
-    border_optimized.show("Border optimized")
+    border_optimized = self.iloc[border_optimized_elements]
+    if show_border_optimized:
+        border_optimized.normalize(ASPIRATIONS)
+        border_optimized.show("Border optimized")
+
+    result_element = border_optimized.iloc[:, key_criterion_index].idxmax()
+    result = border_optimized.loc[[result_element]]
+    if show_result:
+        self.normalize(ASPIRATIONS)
+        result.show("Suboptimization")
+
+    return result
+
+
+def border_optimization(self,
+                        borders: dict[str, list[...]],
+                        show_optimized: bool = True,
+                        show_border_optimized: bool = True,
+                        show_result: bool = True) -> pd.DataFrame | None:
+    optimized_elements = self.optimize()
+    if show_optimized:
+        optimized = self.iloc[optimized_elements]
+        optimized.normalize(ASPIRATIONS)
+        optimized.show("Optimized")
+
+    border_optimized_elements = self.get_optimal_range(borders)
+    if len(border_optimized_elements) == 0:
+        print("Failed to optimize the set using boundaries")
+        return
+
+    if show_border_optimized:
+        border_optimized = self.iloc[border_optimized_elements]
+        border_optimized.normalize(ASPIRATIONS)
+        border_optimized.show("Border optimized")
 
     elements = list(set(border_optimized_elements) & set(optimized_elements))
-    if len(elements) > 0:
-        dataframe.iloc[elements].show("Pareto- and border-optimized set intersection")
-    else:
+    if len(elements) == 0:
         print("\nPareto- and border-optimized set intersection is empty")
+        return
+
+    if show_result:
+        result = self.iloc[elements]
+        result.normalize(ASPIRATIONS)
+        result.show("Pareto- and border-optimized set intersection")
+
+    return self.iloc[elements]
 
 
-def border_optimize(self, borders: dict[str, list[...]]) -> list[int]:
+def get_optimal_range(self, borders: dict[str, list[...]]) -> list[int]:
     elements = set()
 
     if len(borders) == 0:
@@ -132,7 +199,11 @@ def show(self, header: str = ""):
 
 
 if __name__ == "__main__":
-    pd.DataFrame.border_optimize = border_optimize
+    pd.DataFrame.lexicographic_optimization = lexicographic_optimization
+    pd.DataFrame.sub_optimization = sub_optimization
+    pd.DataFrame.border_optimization = border_optimization
+    pd.DataFrame.get_optimal_range = get_optimal_range
+
     pd.DataFrame.optimize = optimize
     pd.DataFrame.normalize = normalize
     pd.DataFrame.show = show
