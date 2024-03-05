@@ -32,10 +32,7 @@ def main():
     optimized.normalize(aspirations)
     optimized.show("Optimized")
 
-    elements = dataframe.optimize()
-    optimized = dataframe.iloc[elements]
-    optimized.normalize(aspirations)
-    elements = optimized.border_optimize({"bigger": [[1, 1]]})
+    elements = optimized.border_optimize({"bigger": [[4, 230]]})
     if len(elements) > 0:
         border_optimized = optimized.iloc[elements]
         border_optimized.show("Border optimized")
@@ -43,42 +40,42 @@ def main():
         print("Failed to optimize the set using boundaries")
 
 
-def border_optimize(self, borders: dict[str, list[...]]) -> list[str]:
+def border_optimize(self, borders: dict[str, list[...]]) -> list[int]:
     """ Narrows down the set of optimal options using borders """
     elements = set()
+
+    if len(borders) == 0:
+        raise ValueError('Empty borders.')
 
     for (key, value) in borders.items():
         if key not in ["bigger", ">", "smaller", "<", "equals", "="]:
             raise KeyError('The keys can only be as follows: ["bigger", ">", "smaller", "<", "equals", "="]')
 
         if not isinstance(value, list) or len(value) == 0:
-            raise ValueError('The value must be a list of two numbers [index, condition]')
+            raise ValueError('The value must be a dict like {condition: [[param_index_1, number_1], ...], ...}')
 
         for condition in value:
             if (not isinstance(condition, list) or
                     len(condition) != 2 or
-                    condition[0] not in range(0, self.shape[0]) or
+                    condition[0] not in range(0, self.shape[1]) or
                     not all([i.isdigit() or i == "." for i in str(condition[1])])):
-                raise ValueError('The value must be a list of two numbers [index, condition]')
+                raise ValueError('The value must be a list like: [param_index, number]')
 
             for row in range(self.shape[0]):
                 if key in ["bigger", ">"]:
-                    print(self.index)
-                    print(row, condition[0])
-                    print(self.loc[row, condition[0]])
-                    if self.loc[row, condition[0]] > condition[1]:
+                    if self.iloc[row, condition[0]] > condition[1]:
                         elements.add(row)
                 elif key in ["smaller", "<"]:
-                    if self.loc[row, condition[0]] < condition[1]:
+                    if self.iloc[row, condition[0]] < condition[1]:
                         elements.add(row)
                 else:
-                    if self.loc[row, condition[0]] == condition[1]:
+                    if self.iloc[row, condition[0]] == condition[1]:
                         elements.add(row)
 
     return list(elements)
 
 
-def optimize(self) -> list[str]:
+def optimize(self, show_comparison: bool = True) -> list[int]:
     """ Finds the optimal Pareto set """
     elements = set()
 
@@ -99,7 +96,9 @@ def optimize(self) -> list[str]:
     compared = pd.DataFrame(compare(),
                             columns=[f'A{i}' for i in range(1, 11)],
                             index=[f'A{i}' for i in range(1, 11)])
-    compared.show("Pairwise comparison")
+
+    if show_comparison:
+        compared.show("Pairwise comparison")
 
     return list(elements)
 
