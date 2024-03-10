@@ -7,3 +7,5 @@
 + Lexicographic method
 
 ---
+
+

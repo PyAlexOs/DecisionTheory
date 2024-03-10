@@ -31,7 +31,10 @@ def main():
     dataframe.show("Normalized")
 
     dataframe.border_optimization(
-        borders={"bigger": [[4, 230]]}
+        borders={
+            "<": [[0, 4.5], [1, 8.5], [3, 200]],
+            "bigger": [[2, 520]]
+        }
     )
 
     """dataframe.sub_optimization(
@@ -91,7 +94,7 @@ def sub_optimization(self,
 
 
 def border_optimization(self,
-                        borders: dict[str, list[...]],
+                        borders: dict[str, list[list[int, float]]],
                         show_optimized: bool = True,
                         show_border_optimized: bool = True,
                         show_result: bool = True) -> pd.DataFrame | None:
@@ -124,12 +127,12 @@ def border_optimization(self,
     return self.iloc[elements]
 
 
-def get_optimal_range(self, borders: dict[str, list[...]]) -> list[int]:
-    elements = set()
-
+def get_optimal_range(self: pd.DataFrame,
+                      borders: dict[str, list[list[int, float]]]) -> list[int]:
     if len(borders) == 0:
         raise ValueError('Empty borders.')
 
+    result = [i for i in range(self.shape[0])]
     for (key, value) in borders.items():
         if key not in ["bigger", ">", "smaller", "<", "equals", "="]:
             raise KeyError('The keys can only be as follows: ["bigger", ">", "smaller", "<", "equals", "="]')
@@ -144,21 +147,27 @@ def get_optimal_range(self, borders: dict[str, list[...]]) -> list[int]:
                     not all([i.isdigit() or i == "." for i in str(condition[1])])):
                 raise ValueError('The value must be a list like: [param_index, number]')
 
+            convert = False
+            if not ASPIRATIONS[condition[0]]:
+                condition[1] = 1 / condition[1]
+                convert = True
+
             for row in range(self.shape[0]):
-                if key in ["bigger", ">"]:
-                    if self.iloc[row, condition[0]] > condition[1]:
-                        elements.add(row)
-                elif key in ["smaller", "<"]:
-                    if self.iloc[row, condition[0]] < condition[1]:
-                        elements.add(row)
+                if key in ["bigger", ">"] or (convert and key in ["smaller", "<"]):
+                    if not self.iloc[row, condition[0]] > condition[1] and row in result:
+                        result.remove(row)
+                elif key in ["smaller", "<"] or (convert and key in ["bigger", ">"]):
+                    if not self.iloc[row, condition[0]] < condition[1] and row in result:
+                        result.remove(row)
                 else:
-                    if self.iloc[row, condition[0]] == condition[1]:
-                        elements.add(row)
+                    if not self.iloc[row, condition[0]] == condition[1] and row in result:
+                        result.remove(row)
 
-    return list(elements)
+    return result
 
 
-def optimize(self, show_comparison: bool = True) -> list[int]:
+def optimize(self: pd.DataFrame,
+             show_comparison: bool = True) -> list[int]:
     elements = set()
 
     def compare() -> list[list[str]]:
@@ -185,14 +194,16 @@ def optimize(self, show_comparison: bool = True) -> list[int]:
     return list(elements)
 
 
-def normalize(self, aspirations: list[bool]):
+def normalize(self: pd.DataFrame,
+              aspirations: list[bool]):
     for col, aspiration in enumerate(aspirations):
         if not aspiration:
             for row in range(self.shape[0]):
                 self.iloc[row, col] = (1 / self.iloc[row, col])
 
 
-def show(self, header: str = ""):
+def show(self: pd.DataFrame,
+         header: str = ""):
     console_width = shutil.get_terminal_size().columns
     filler = "-" * ((console_width - len(header)) // 2)
     print(f"\n{filler}{header}{filler}\n" + self.to_string())
