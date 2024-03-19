@@ -32,15 +32,16 @@ def main():
 
     dataframe.border_optimization(
         borders={
-            "<": [[0, 4.5], [1, 8.5], [3, 200]],
-            "bigger": [[2, 520]]
+            "<": [[0, 4.5], [3, 200]],
+            "bigger": [[2, 500], [4, 200]]
         }
     )
 
     """dataframe.sub_optimization(
-        borders={"bigger": [[4, 230]]},
-        key_criterion_index=3
+        borders={"bigger": [[2, 550], [3, 200]]},
+        key_criterion_index=1
     )"""
+
     """dataframe.lexicographic_optimization([4, 0, 1, 2, 3])"""
 
 
@@ -85,6 +86,9 @@ def sub_optimization(self,
         border_optimized.show("Border optimized")
 
     result_element = border_optimized.iloc[:, key_criterion_index].idxmax()
+    if not ASPIRATIONS[key_criterion_index]:
+        result_element = border_optimized.iloc[:, key_criterion_index].idxmin()
+
     result = border_optimized.loc[[result_element]]
     if show_result:
         self.normalize(ASPIRATIONS)
@@ -172,16 +176,33 @@ def optimize(self: pd.DataFrame,
 
     def compare() -> list[list[str]]:
         result = [["x" for _ in range(self.shape[0])] for _ in range(self.shape[0])]
+        incomparable_elements = [i for i in range(self.shape[0])]
         for alt_1 in range(self.shape[0]):
             for alt_2 in range(alt_1 + 1, self.shape[0]):
                 if (self.iloc[alt_1].values >= self.iloc[alt_2].values).all():
                     result[alt_2][alt_1] = self.index.values[alt_1]
                     elements.add(alt_1)
+
+                    if alt_1 in incomparable_elements:
+                        incomparable_elements.remove(alt_1)
+                    if alt_2 in incomparable_elements:
+                        incomparable_elements.remove(alt_2)
+
                 elif (self.iloc[alt_1].values <= self.iloc[alt_2].values).all():
                     result[alt_2][alt_1] = self.index.values[alt_2]
                     elements.add(alt_2)
+
+                    if alt_1 in incomparable_elements:
+                        incomparable_elements.remove(alt_1)
+                    if alt_2 in incomparable_elements:
+                        incomparable_elements.remove(alt_2)
+
                 else:
                     result[alt_2][alt_1] = "н"
+
+        for element in incomparable_elements:
+            elements.add(element)
+
         return result
 
     compared = pd.DataFrame(compare(),
@@ -198,8 +219,7 @@ def normalize(self: pd.DataFrame,
               aspirations: list[bool]):
     for col, aspiration in enumerate(aspirations):
         if not aspiration:
-            for row in range(self.shape[0]):
-                self.iloc[row, col] = (1 / self.iloc[row, col])
+            self.iloc[:, col] = (1 / self.iloc[:, col])
 
 
 def show(self: pd.DataFrame,

@@ -1,11 +1,12 @@
 # DecisionTheory
-> Choosing the optimal passenger car for travel
+> **Choosing the optimal car for travelling**
+ 
+ ---
 
-### [Pareto method](Pareto.py)
+### [Pareto's method](Pareto.py) with the following narrowing methods
 + Method for specifying upper and lower bounds of criteria
 + The method of suboptimization
 + Lexicographic method
 
 ---
-
 
