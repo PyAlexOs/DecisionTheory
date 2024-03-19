@@ -30,18 +30,19 @@ def main():
     dataframe.normalize(ASPIRATIONS)
     dataframe.show("Normalized")
 
-    dataframe.border_optimization(
+    """dataframe.border_optimization(
         borders={
             "<": [[0, 4.5], [1, 8.5], [3, 200]],
             "bigger": [[2, 520]]
         }
-    )
+    )"""
 
     """dataframe.sub_optimization(
-        borders={"bigger": [[4, 230]]},
-        key_criterion_index=3
+        borders={"bigger": [[2, 550], [3, 200]]},
+        key_criterion_index=1
     )"""
-    """dataframe.lexicographic_optimization([4, 0, 1, 2, 3])"""
+
+    dataframe.lexicographic_optimization([4, 0, 1, 2, 3])
 
 
 def lexicographic_optimization(self,
@@ -85,6 +86,9 @@ def sub_optimization(self,
         border_optimized.show("Border optimized")
 
     result_element = border_optimized.iloc[:, key_criterion_index].idxmax()
+    if not ASPIRATIONS[key_criterion_index]:
+        result_element = border_optimized.iloc[:, key_criterion_index].idxmin()
+
     result = border_optimized.loc[[result_element]]
     if show_result:
         self.normalize(ASPIRATIONS)
