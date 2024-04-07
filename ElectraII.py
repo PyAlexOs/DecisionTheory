@@ -35,6 +35,69 @@ def main():
     dataframe.show("Alternatives")
 
     dataframe.range_rank(ASPIRATIONS, RANKS, COST)
+    print()
+    dataframe.get_matrix(COST)
+
+
+def get_matrix(self: pd.DataFrame,
+               cost: list[int],
+               show_matrix: bool = True,
+               show_weights: bool = True) -> np.ndarray:
+    """ Getting a matrix with preference weights """
+    matrix = np.full((self.shape[0], self.shape[0]), "x")
+    for i, (_, alt_1) in enumerate(self.iterrows()):
+        for j, (_, alt_2) in enumerate(self.iloc[i + 1:].iterrows(), i + 1):
+            if show_weights:
+                print(f"Рассмотрим альтернативы {i + 1} и {j + 1} (i={i + 1}, j={j + 1}):")
+
+            p, n = [], []
+            for col in range(len(self.columns.values)):
+                if alt_1.iloc[col] > alt_2.iloc[col]:
+                    p.append(cost[col])
+                    n.append(0)
+                elif alt_1.iloc[col] < alt_2.iloc[col]:
+                    n.append(cost[col])
+                    p.append(0)
+                else:
+                    n.append(0)
+                    p.append(0)
+
+            result = np.inf
+            if sum(n) != 0:
+                result = round(sum(p) / sum(n), 2)
+
+            if p > n:
+                matrix[i, j] = str(result) if result != np.inf else "∞"
+                matrix[j, i] = "–"
+
+            if show_weights:
+                print(f"P{i + 1}{j + 1} = {" + ".join(list(map(lambda x: str(x), p)))} = {sum(p)}")
+                print(f"N{i + 1}{j + 1} = {" + ".join(list(map(lambda x: str(x), n)))} = {sum(n)}")
+                print(f"D{i + 1}{j + 1} = P{i + 1}{j + 1}/N{i + 1}{j + 1} = "
+                      f"{sum(p)}/{sum(n)} = {result if result != np.inf else "∞"} " +
+                      (("> 1 " if result != np.inf else "") + "– принимаем." if p > n
+                       else "< 1 – отбрасываем."))
+
+            result = np.inf
+            if sum(p) != 0:
+                result = round(sum(n) / sum(p), 2)
+
+            if n > p:
+                matrix[i, j] = "–"
+                matrix[j, i] = str(result) if result != np.inf else "∞"
+
+            if show_weights:
+                print(f"P{j + 1}{i + 1} = {" + ".join(list(map(lambda x: str(x), n)))} = {sum(n)}")
+                print(f"N{j + 1}{i + 1} = {" + ".join(list(map(lambda x: str(x), p)))} = {sum(p)}")
+                print(f"D{j + 1}{i + 1} = P{j + 1}{i + 1}/N{j + 1}{i + 1} = "
+                      f"{sum(n)}/{sum(p)} = {result if result != np.inf else "∞"} " +
+                      (("> 1 " if result != np.inf else "") + "– принимаем." if n > p
+                       else "< 1 – отбрасываем."))
+
+    if show_matrix:
+        print(matrix)
+
+    return matrix
 
 
 def range_rank(self: pd.DataFrame,
@@ -73,6 +136,7 @@ def show(self: pd.DataFrame,
 
 
 if __name__ == "__main__":
+    pd.DataFrame.get_matrix = get_matrix
     pd.DataFrame.range_rank = range_rank
     pd.DataFrame.show = show
     main()
