@@ -11,5 +11,7 @@
 ---
 
 ### [Electra's (II) method](ElectraII.py)
+Generates a preference graph based on the constructed matrix,
+taking into account the selection threshold value
 
 ---

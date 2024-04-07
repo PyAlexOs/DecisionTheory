@@ -9,11 +9,11 @@ KEYS = ["Стоимость машины",
         "Мощность двигателя",
         "Клиренс"]
 COST = [5, 4, 3, 3, 2]
-RANKS = [{2.5, 4.5},
-         {6., 8.5},
+RANKS = [{2.5, 3.5, 4.5, 5.5},
+         {6., 7.5, 9.},
          {500., 600.},
-         {190., 230.},
-         {220., 230.}]
+         {170., 200., 230.},
+         {200., 220., 230.}]
 TABLE = [['Mazda CX-5', 4.1, 7.1, 565, 165, 235],
          ['Toyota Land Cruiser Prado', 4.1, 11.0, 550, 163, 235],
          ['Audi A4', 4.1, 7.1, 570, 245, 235],
@@ -37,7 +37,32 @@ def main():
 
     dataframe.range_rank(ASPIRATIONS, RANKS, COST)
     print()
-    matrix = dataframe.get_matrix(COST, show_weights=False)
+    preferences = dataframe.get_matrix(COST, show_weights=False)  # show weights for report
+    make_graph(preferences, threshold=1.5)
+
+
+def threshold_preferences(preferences: np.ndarray,
+                          threshold: float) -> np.ndarray:
+    """ Dilutes the matrix by a threshold value """
+    for row in range(preferences.shape[0]):
+        for col in range(preferences.shape[1]):
+            if preferences[row, col] < threshold:
+                preferences[row, col] = 0
+
+    return preferences
+
+
+def make_graph(preferences: np.ndarray,
+               threshold: float = 1):
+    """ Generates a preference graph """
+    graph = gv.Digraph(name='preference graph')
+    for row in range(preferences.shape[0]):
+        graph.node(str(row + 1))
+        for col in range(preferences.shape[1]):
+            if preferences[row, col] >= threshold:
+                graph.edge(str(row + 1), str(col + 1))
+
+    graph.render(f'files/preference_graph(threshold-{threshold}).gv', view=True)
 
 
 def get_matrix(self: pd.DataFrame,
@@ -111,7 +136,17 @@ def get_matrix(self: pd.DataFrame,
                      index=[f"A{i + 1}" for i in range(matrix.shape[0])],
                      columns=[f"A{i + 1}" for i in range(matrix.shape[1])]).show("Preference weights")
 
-    return matrix
+    preferences = np.full(matrix.shape, 0., dtype=np.float_)
+    for row in range(matrix.shape[0]):
+        for col in range(matrix.shape[1]):
+            if matrix[row, col] in ["–", "x"]:
+                continue
+            if matrix[row, col] == "∞":
+                preferences[row, col] = np.inf
+            else:
+                preferences[row, col] = matrix[row, col]
+
+    return preferences
 
 
 def range_rank(self: pd.DataFrame,
