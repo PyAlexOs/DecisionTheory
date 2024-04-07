@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import shutil
 
 KEYS = ["Стоимость машины",
@@ -33,30 +34,31 @@ def main():
     dataframe = pd.DataFrame(data=data, index=[f'A{i}' for i in range(1, 11)])
     dataframe.show("Alternatives")
 
-    dataframe.range_rank(ASPIRATIONS, RANKS)
-
-
-def normalize(self: pd.DataFrame,
-              aspirations: list[bool]):
-    for col, aspiration in enumerate(aspirations):
-        if not aspiration:
-            for row in range(self.shape[0]):
-                self.iloc[row, col] = (1 / self.iloc[row, col])
+    dataframe.range_rank(ASPIRATIONS, RANKS, COST)
 
 
 def range_rank(self: pd.DataFrame,
                aspirations: list[bool],
-               cost: list[int],
                ranks: list[set[float]],
+               cost: list[int],
                show_rank: bool = True):
-    for col, aspiration in enumerate(aspirations):
-        for row, _ in self.iterrows():
-            for i, border in enumerate(sorted(ranks[col], reverse=not aspiration)):
-                if 
-                    self.loc[row, :].iloc[:, col] = cost[col] * (i + 1)
-                    continue
+    """ Ranks the criteria according to the cost scale, taking into account the boundaries """
+    ranged = np.full((self.shape[0], self.shape[1]), False)
+    for col, rank in enumerate(ranks):
+        rank = sorted(list(rank))
+        rank.insert(0, 0)
+        rank.append(np.inf)
 
+        for border in range(len(rank) - 1):
+            for row_number, (_, row) in enumerate(self.iterrows()):
+                if not ranged[row_number, col]:
+                    if rank[border] <= row.iloc[col] < rank[border + 1]:
+                        start, stop, step = cost[col], cost[col] * len(rank), cost[col]
+                        if not aspirations[col]:
+                            start, stop, step = cost[col] * (len(rank) - 1), 0, -cost[col]
 
+                        self.iloc[row_number, col] = (np.arange(start=start, stop=stop, step=step))[border]
+                        ranged[row_number, col] = True
 
     if show_rank:
         self.show("Ranked")
@@ -64,13 +66,13 @@ def range_rank(self: pd.DataFrame,
 
 def show(self: pd.DataFrame,
          header: str = ""):
+    """ Displays a table with the name """
     console_width = shutil.get_terminal_size().columns
     filler = "-" * ((console_width - len(header)) // 2)
     print(f"\n{filler}{header}{filler}\n" + self.to_string())
 
 
 if __name__ == "__main__":
-    pd.DataFrame.normalize = normalize
     pd.DataFrame.range_rank = range_rank
     pd.DataFrame.show = show
     main()
