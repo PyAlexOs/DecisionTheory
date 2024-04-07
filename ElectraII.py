@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import graphviz as gv
 import shutil
 
 KEYS = ["Стоимость машины",
@@ -36,7 +37,7 @@ def main():
 
     dataframe.range_rank(ASPIRATIONS, RANKS, COST)
     print()
-    dataframe.get_matrix(COST)
+    matrix = dataframe.get_matrix(COST, show_weights=False)
 
 
 def get_matrix(self: pd.DataFrame,
@@ -44,7 +45,7 @@ def get_matrix(self: pd.DataFrame,
                show_matrix: bool = True,
                show_weights: bool = True) -> np.ndarray:
     """ Getting a matrix with preference weights """
-    matrix = np.full((self.shape[0], self.shape[0]), "x")
+    matrix = np.full((self.shape[0], self.shape[0]), "x", dtype=np.dtype("U4"))
     for i, (_, alt_1) in enumerate(self.iterrows()):
         for j, (_, alt_2) in enumerate(self.iloc[i + 1:].iterrows(), i + 1):
             if show_weights:
@@ -62,11 +63,22 @@ def get_matrix(self: pd.DataFrame,
                     n.append(0)
                     p.append(0)
 
+            if sum(p) == sum(n):
+                matrix[i, j] = "–"
+                matrix[j, i] = "–"
+                if show_weights:
+                    print(f"P{i + 1}{j + 1} = {" + ".join(list(map(lambda x: str(x), p)))} = {sum(p)}")
+                    print(f"N{i + 1}{j + 1} = {" + ".join(list(map(lambda x: str(x), n)))} = {sum(n)}")
+                    print(f"D{i + 1}{j + 1} = P{i + 1}{j + 1}/N{i + 1}{j + 1} = "
+                          f"{sum(p)}/{sum(n)} = 1 – отбрасываем, согласно правилу D ≤ 1\n"
+                          f"Тогда отбрасывается и D{j + 1}{i + 1}")
+                continue
+
             result = np.inf
             if sum(n) != 0:
                 result = round(sum(p) / sum(n), 2)
 
-            if p > n:
+            if sum(p) > sum(n):
                 matrix[i, j] = str(result) if result != np.inf else "∞"
                 matrix[j, i] = "–"
 
@@ -75,14 +87,14 @@ def get_matrix(self: pd.DataFrame,
                 print(f"N{i + 1}{j + 1} = {" + ".join(list(map(lambda x: str(x), n)))} = {sum(n)}")
                 print(f"D{i + 1}{j + 1} = P{i + 1}{j + 1}/N{i + 1}{j + 1} = "
                       f"{sum(p)}/{sum(n)} = {result if result != np.inf else "∞"} " +
-                      (("> 1 " if result != np.inf else "") + "– принимаем." if p > n
+                      (("> 1 " if result != np.inf else "") + "– принимаем." if sum(p) > sum(n)
                        else "< 1 – отбрасываем."))
 
             result = np.inf
             if sum(p) != 0:
                 result = round(sum(n) / sum(p), 2)
 
-            if n > p:
+            if sum(n) > sum(p):
                 matrix[i, j] = "–"
                 matrix[j, i] = str(result) if result != np.inf else "∞"
 
@@ -91,11 +103,13 @@ def get_matrix(self: pd.DataFrame,
                 print(f"N{j + 1}{i + 1} = {" + ".join(list(map(lambda x: str(x), p)))} = {sum(p)}")
                 print(f"D{j + 1}{i + 1} = P{j + 1}{i + 1}/N{j + 1}{i + 1} = "
                       f"{sum(n)}/{sum(p)} = {result if result != np.inf else "∞"} " +
-                      (("> 1 " if result != np.inf else "") + "– принимаем." if n > p
-                       else "< 1 – отбрасываем."))
+                      (("> 1 " if result != np.inf else "") + "– принимаем." if sum(n) > sum(p)
+                       else "≤ 1 – отбрасываем."))
 
     if show_matrix:
-        print(matrix)
+        pd.DataFrame(matrix,
+                     index=[f"A{i + 1}" for i in range(matrix.shape[0])],
+                     columns=[f"A{i + 1}" for i in range(matrix.shape[1])]).show("Preference weights")
 
     return matrix
 
