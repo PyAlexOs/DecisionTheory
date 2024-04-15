@@ -35,9 +35,9 @@ def main():
     dataframe = pd.DataFrame(data=data, index=[f'A{i}' for i in range(1, 11)])
     dataframe.show("Alternatives")
 
-    dataframe.range_rank(ASPIRATIONS, RANKS, COST)
+    dataframe.range_rank(RANKS, COST)
     print()
-    preferences = dataframe.get_matrix(COST, show_weights=False)  # show weights for report
+    preferences = dataframe.get_matrix(COST, ASPIRATIONS, show_weights=False)  # show weights for report
     make_graph(preferences, threshold=1.5)
 
 
@@ -67,6 +67,7 @@ def make_graph(preferences: np.ndarray,
 
 def get_matrix(self: pd.DataFrame,
                cost: list[int],
+               aspirations: list[bool],
                show_matrix: bool = True,
                show_weights: bool = True) -> np.ndarray:
     """ Getting a matrix with preference weights """
@@ -78,12 +79,15 @@ def get_matrix(self: pd.DataFrame,
 
             p, n = [], []
             for col in range(len(self.columns.values)):
-                if alt_1.iloc[col] > alt_2.iloc[col]:
+                if ((alt_1.iloc[col] > alt_2.iloc[col] and aspirations[col]) or
+                        (alt_1.iloc[col] < alt_2.iloc[col] and not aspirations[col])):
                     p.append(cost[col])
                     n.append(0)
-                elif alt_1.iloc[col] < alt_2.iloc[col]:
+                elif ((alt_1.iloc[col] < alt_2.iloc[col] and aspirations[col]) or
+                        (alt_1.iloc[col] > alt_2.iloc[col] and not aspirations[col])):
                     n.append(cost[col])
                     p.append(0)
+
                 else:
                     n.append(0)
                     p.append(0)
@@ -150,7 +154,6 @@ def get_matrix(self: pd.DataFrame,
 
 
 def range_rank(self: pd.DataFrame,
-               aspirations: list[bool],
                ranks: list[set[float]],
                cost: list[int],
                show_rank: bool = True):
@@ -165,11 +168,9 @@ def range_rank(self: pd.DataFrame,
             for row_number, (_, row) in enumerate(self.iterrows()):
                 if not ranged[row_number, col]:
                     if rank[border] <= row.iloc[col] < rank[border + 1]:
-                        start, stop, step = cost[col], cost[col] * len(rank), cost[col]
-                        if not aspirations[col]:
-                            start, stop, step = cost[col] * (len(rank) - 1), 0, -cost[col]
-
-                        self.iloc[row_number, col] = (np.arange(start=start, stop=stop, step=step))[border]
+                        self.iloc[row_number, col] = (np.arange(start=cost[col],
+                                                                stop=(cost[col] * len(rank)),
+                                                                step=cost[col]))[border]
                         ranged[row_number, col] = True
 
     if show_rank:
