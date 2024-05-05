@@ -45,7 +45,7 @@ def main():
     """dataframe.lexicographic_optimization([4, 0, 1, 2, 3])"""
 
 
-def lexicographic_optimization(self,
+def lexicographic_optimization(self: pd.DataFrame,
                                criterion_importance_index: list,
                                show_result: bool = True) -> pd.DataFrame | None:
     if len(set(criterion_importance_index)) != self.shape[1]:
@@ -70,8 +70,8 @@ def lexicographic_optimization(self,
     return result
 
 
-def sub_optimization(self,
-                     borders: dict[str, list[...]],
+def sub_optimization(self: pd.DataFrame,
+                     borders: dict[str, list[list[float, float]]],
                      key_criterion_index: int,
                      show_border_optimized: bool = True,
                      show_result: bool = True) -> pd.DataFrame | None:
@@ -97,7 +97,7 @@ def sub_optimization(self,
     return result
 
 
-def border_optimization(self,
+def border_optimization(self: pd.DataFrame,
                         borders: dict[str, list[list[int, float]]],
                         show_optimized: bool = True,
                         show_border_optimized: bool = True,
