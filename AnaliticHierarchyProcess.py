@@ -3,7 +3,7 @@ from fractions import Fraction
 import functools
 
 
-class HierarchyAnalyzer:
+class MatrixPipeline:
     random_consistency = [0.0, 0.0, 0.58, 0.9, 1.12, 1.24, 1.32, 1.41, 1.45, 1.49, 1.51, 1.48, 1.56, 1.57, 1.59]
 
     def __call__(self, matrix: np.ndarray[np.ndarray[float]]) -> bool:
@@ -11,7 +11,7 @@ class HierarchyAnalyzer:
             print("Not enough alternatives.")
             return False
 
-        priority_vector = self.__get_priority_vector(matrix)
+        priority_vector = self.get_priority_vector(matrix)
         consistency_index = self.__get_consistency_index(matrix, priority_vector)
         consistency = consistency_index / self.random_consistency[len(priority_vector)]
 
@@ -29,7 +29,7 @@ class HierarchyAnalyzer:
     def __normalize(self, g_means: np.ndarray[float]) -> np.ndarray[float]:
         return g_means / sum(g_means)
 
-    def __get_priority_vector(self, matrix: np.ndarray[np.ndarray[float]]) -> np.ndarray[float]:
+    def get_priority_vector(self, matrix: np.ndarray[np.ndarray[float]]) -> np.ndarray[float]:
         return self.__normalize(np.array([self.__g_mean(row) for row in matrix]))
 
     def __get_consistency_index(self, matrix: np.ndarray[np.ndarray[float]], priority_vec: np.ndarray[float]) -> float:
@@ -106,8 +106,23 @@ def parse_table_from_word(string: str) -> list[list[Fraction]]:
     return table
 
 
+def rank(priority_vector: np.ndarray[float],
+         criteria_priority_vectors: np.ndarray[np.ndarray[float]],
+         show_report: bool = True):
+    if show_report:
+        print(f"\n{"-" * 10}Priorities{"-" * 10}")
+        for (i, vector) in enumerate(criteria_priority_vectors, start=1):
+            print(f"W_{i}={" + ".join(f"W_{{2{j}}}*W_{{3К{j}{i}}}" for j in range(1, len(priority_vector) + 1))}="
+                  f"{" + ".join([f"{round(priority_vector[j], 3)}*{round(vector[j], 3)}"
+                                 for j in range(len(priority_vector))])}="
+                  f"{round(sum([priority_vector[j] * vector[j] for j in range(len(priority_vector))]), 3)}")
+
+    return [np.dot(vector, priority_vector) for vector in criteria_priority_vectors]
+
+
 def main():
     # insert data from docx table to variable
+    names = ['Audi A4', 'Kia Sportage', 'Volvo XC90', 'Nissan X-Trail', 'Mercedes GLC']
     criteria = """1	3	7	5	9
                   1/3	1	5	3	7
                   1/7	1/5	1	1/3	1
@@ -142,17 +157,20 @@ def main():
     criteria = parse_table_from_word(criteria)
     criteria_for_alternatives = list(map(parse_table_from_word, criteria_for_alternatives))
 
-    analyzer = HierarchyAnalyzer()
-    analyzer.make_report(np.array(criteria))
+    pipeline = MatrixPipeline()
+    pipeline.make_report(np.array(criteria))
+
     for (i, criteria_for_alternative) in enumerate(criteria_for_alternatives, start=1):
         print()
-        analyzer.make_report(np.array(criteria_for_alternative), is_criteria="К", criteria_number=str(i))
+        pipeline.make_report(np.array(criteria_for_alternative), is_criteria="К", criteria_number=str(i))
 
-    if analyzer(np.array(criteria, dtype=float)):
-        pass
-    for (i, criteria_for_alternative) in enumerate(criteria_for_alternatives, start=1):
-        if analyzer(np.array(criteria_for_alternative, dtype=float)):
-            pass
+    priority_vector = pipeline.get_priority_vector(np.array(criteria, dtype=float))
+    criteria_vectors = np.array([pipeline.get_priority_vector(np.array(criteria_vec, dtype=float))
+                                for criteria_vec in criteria_for_alternatives])
+    preferences = rank(priority_vector, criteria_vectors)
+    print(*sorted([(name, round(rate, 3)) for name, rate in zip(names, preferences)],
+                  reverse=True, key=lambda x: x[1]), sep="\n")
+
 
 if __name__ == '__main__':
     main()
