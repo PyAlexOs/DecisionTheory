@@ -15,3 +15,8 @@ Generates a preference graph based on the constructed matrix,
 taking into account the selection threshold value
 
 ---
+
+### [Analitic Hierarchy Process](AnaliticHierarchyProcess.py)
+Solving poorly structured decision-making tasks. Allows to make coordinated decisions.
+
+---
