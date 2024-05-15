@@ -48,6 +48,7 @@ def main():
 def lexicographic_optimization(self: pd.DataFrame,
                                criterion_importance_index: list,
                                show_result: bool = True) -> pd.DataFrame | None:
+    """ Searches for the optimal solution in the given order of importance of the criteria """
     if len(set(criterion_importance_index)) != self.shape[1]:
         raise ValueError("Wrong criterion importance list")
 
@@ -75,6 +76,7 @@ def sub_optimization(self: pd.DataFrame,
                      key_criterion_index: int,
                      show_border_optimized: bool = True,
                      show_result: bool = True) -> pd.DataFrame | None:
+    """ Finds the optimal solution according to the main criterion, which is suitable for additional conditions """
     border_optimized_elements = self.get_optimal_range(borders)
     if len(border_optimized_elements) == 0:
         print("Failed to optimize the set using boundaries")
@@ -102,6 +104,7 @@ def border_optimization(self: pd.DataFrame,
                         show_optimized: bool = True,
                         show_border_optimized: bool = True,
                         show_result: bool = True) -> pd.DataFrame | None:
+    """ Finds Pareto optimal alternatives that satisfy additionally specified conditions """
     optimized_elements = self.optimize()
     if show_optimized:
         optimized = self.iloc[optimized_elements]
@@ -133,10 +136,11 @@ def border_optimization(self: pd.DataFrame,
 
 def get_optimal_range(self: pd.DataFrame,
                       borders: dict[str, list[list[int, float]]]) -> list[int]:
+    """ Filters out alternatives that are not suitable for the specified conditions """
     if len(borders) == 0:
         raise ValueError('Empty borders.')
 
-    result = [i for i in range(self.shape[0])]
+    result = [i for i in range(self.shape[0])]  # indexes of alternatives within the specified constraints
     for (key, value) in borders.items():
         if key not in ["bigger", ">", "smaller", "<", "equals", "="]:
             raise KeyError('The keys can only be as follows: ["bigger", ">", "smaller", "<", "equals", "="]')
@@ -172,9 +176,11 @@ def get_optimal_range(self: pd.DataFrame,
 
 def optimize(self: pd.DataFrame,
              show_comparison: bool = True) -> list[int]:
-    elements = set()
+    """ Finds incomparable and Pareto optimal solutions """
+    elements = set()  # indexes of incomparable and Pareto optimal solutions
 
     def compare() -> list[list[str]]:
+        """ Compares alternatives by criteria in pairs, returns a matrix reflecting the superiority of row over col, taking into account incomparable alternatives """
         result = [["x" for _ in range(self.shape[0])] for _ in range(self.shape[0])]
         incomparable_elements = [i for i in range(self.shape[0])]
         for alt_1 in range(self.shape[0]):
@@ -217,6 +223,7 @@ def optimize(self: pd.DataFrame,
 
 def normalize(self: pd.DataFrame,
               aspirations: list[bool]):
+    """ Converts the values of criteria with negative aspirations """
     for col, aspiration in enumerate(aspirations):
         if not aspiration:
             self.iloc[:, col] = (1 / self.iloc[:, col])
@@ -224,6 +231,7 @@ def normalize(self: pd.DataFrame,
 
 def show(self: pd.DataFrame,
          header: str = ""):
+    """ Outputs the dataframe with the given name """
     console_width = shutil.get_terminal_size().columns
     filler = "-" * ((console_width - len(header)) // 2)
     print(f"\n{filler}{header}{filler}\n" + self.to_string())

@@ -25,6 +25,7 @@ TABLE = [['Mazda CX-5', 4.1, 7.1, 565, 165, 235],
          ['Jeep Wrangler', 4.9, 11.3, 142, 225, 220],
          ['УАЗ Патриот', 1.9, 11.2, 1130, 225, 225]]
 ASPIRATIONS = [False, False, True, True, True]
+THRESHOLD = 1.5
 
 
 def main():
@@ -35,24 +36,53 @@ def main():
     dataframe = pd.DataFrame(data=data, index=[f'A{i}' for i in range(1, 11)])
     dataframe.show("Alternatives")
 
-    dataframe.range_rank(RANKS, COST)
-    print()
-    preferences = dataframe.get_matrix(COST, ASPIRATIONS, show_weights=False)  # show weights for report
-    make_graph(preferences, threshold=1.5)
+    ranged = dataframe.range_rank(RANKS, COST)
+    preferences = ranged.get_matrix(COST, ASPIRATIONS, show_weights=False)
+    thresholded_preferences, hierarchy = threshold_preferences(preferences, threshold=THRESHOLD)
+    make_graph(thresholded_preferences, threshold=THRESHOLD) 
+    # it is possible to pass the threshold value immediately for generating the graph
+
+    optimized = dataframe.iloc[sum(hierarchy, [])]
+    optimized.show("Sorted alternatives")
 
 
-def threshold_preferences(preferences: np.ndarray,
-                          threshold: float) -> np.ndarray:
-    """ Dilutes the matrix by a threshold value """
+def threshold_preferences(preferences: np.ndarray[float],
+                          threshold: float = 1) -> tuple[np.ndarray[float], list[list[int]]]:
+    """ Removes weak edges from the graph, sorts alternatives """
     for row in range(preferences.shape[0]):
         for col in range(preferences.shape[1]):
             if preferences[row, col] < threshold:
                 preferences[row, col] = 0
 
-    return preferences
+    # add heads
+    result: list[set[int]] = [set() for _ in range(len(preferences))]
+    for i in range(len(preferences)):
+        if sum(preferences.T[i]) == 0:
+            result[0].add(i)
+
+    if len(result[0]) == 0:
+        raise ValueError("Threshold value is too small, there are loops in the graph")
+    
+    # add all dependencies of the next level from the current one
+    level = 0
+    while level + 1 < len(preferences):
+        for head in result[level]:
+            for (i, sub_node) in enumerate(preferences[head]):
+                if sub_node != 0:
+                    result[level + 1].add(i)
+        level += 1
+
+    # creating a new list of dependencies, where each level depends only on the higher one
+    hierarchy = [list() for _ in range(len(preferences))]
+    for level in range(len(result) - 1, 0, -1):
+        for node in result[level - 1]:
+            if node not in result[level]:
+                hierarchy[level - 1].append(node)
+
+    return (preferences, hierarchy)
 
 
-def make_graph(preferences: np.ndarray,
+def make_graph(preferences: np.ndarray[float],
                threshold: float = 1):
     """ Generates a preference graph """
     graph = gv.Digraph(name='preference graph')
@@ -69,7 +99,7 @@ def get_matrix(self: pd.DataFrame,
                cost: list[int],
                aspirations: list[bool],
                show_matrix: bool = True,
-               show_weights: bool = True) -> np.ndarray:
+               show_weights: bool = True) -> np.ndarray[float]:
     """ Getting a matrix with preference weights """
     matrix = np.full((self.shape[0], self.shape[0]), "x", dtype=np.dtype("U4"))
     for i, (_, alt_1) in enumerate(self.iterrows()):
@@ -92,6 +122,7 @@ def get_matrix(self: pd.DataFrame,
                     n.append(0)
                     p.append(0)
 
+            # for the report
             if sum(p) == sum(n):
                 matrix[i, j] = "–"
                 matrix[j, i] = "–"
@@ -140,7 +171,8 @@ def get_matrix(self: pd.DataFrame,
                      index=[f"A{i + 1}" for i in range(matrix.shape[0])],
                      columns=[f"A{i + 1}" for i in range(matrix.shape[1])]).show("Preference weights")
 
-    preferences = np.full(matrix.shape, 0., dtype=np.float_)
+    # converts a matrix from a readable form to a numeric one for processing it
+    preferences = np.full(matrix.shape, 0., dtype=float)
     for row in range(matrix.shape[0]):
         for col in range(matrix.shape[1]):
             if matrix[row, col] in ["–", "x"]:
@@ -156,30 +188,34 @@ def get_matrix(self: pd.DataFrame,
 def range_rank(self: pd.DataFrame,
                ranks: list[set[float]],
                cost: list[int],
-               show_rank: bool = True):
+               show_rank: bool = True) -> pd.DataFrame:
     """ Ranks the criteria according to the cost scale, taking into account the boundaries """
-    ranged = np.full((self.shape[0], self.shape[1]), False)
+    is_ranged = np.full((self.shape[0], self.shape[1]), False)
+    ranged = self.copy(deep=True)
+
     for col, rank in enumerate(ranks):
         rank = sorted(list(rank))
         rank.insert(0, 0)
         rank.append(np.inf)
 
         for border in range(len(rank) - 1):
-            for row_number, (_, row) in enumerate(self.iterrows()):
-                if not ranged[row_number, col]:
+            for row_number, (_, row) in enumerate(ranged.iterrows()):
+                if not is_ranged[row_number, col]:
                     if rank[border] <= row.iloc[col] < rank[border + 1]:
-                        self.iloc[row_number, col] = (np.arange(start=cost[col],
-                                                                stop=(cost[col] * len(rank)),
-                                                                step=cost[col]))[border]
-                        ranged[row_number, col] = True
+                        ranged.iloc[row_number, col] = (np.arange(start=cost[col],
+                                                                  stop=(cost[col] * len(rank)),
+                                                                  step=cost[col]))[border]
+                        is_ranged[row_number, col] = True
 
     if show_rank:
-        self.show("Ranked")
+        ranged.show("Ranked")
+
+    return ranged
 
 
 def show(self: pd.DataFrame,
          header: str = ""):
-    """ Displays a table with the name """
+    """ Outputs the dataframe with the given name """
     console_width = shutil.get_terminal_size().columns
     filler = "-" * ((console_width - len(header)) // 2)
     print(f"\n{filler}{header}{filler}\n" + self.to_string())
