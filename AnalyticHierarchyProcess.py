@@ -167,6 +167,7 @@ def rank(priority_vector: np.ndarray[float],
          criteria_priority_vectors: np.ndarray[np.ndarray[float]],
          show_report: bool = True):
     """ Calculates the best alternatives using a second-level priority vector and an array of third-level priority vectors """
+    criteria_priority_vectors = criteria_priority_vectors.T
     if show_report:
         console_width = shutil.get_terminal_size().columns
         print(f"\n{"-" * ((console_width - 11) // 2)}Priorities{"-" * ((console_width - 11) // 2)}")
