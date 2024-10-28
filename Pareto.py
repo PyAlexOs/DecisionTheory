@@ -19,21 +19,30 @@ def main():
             "bigger": [[2, 500], [4, 200]]
         }
     )
+    print("\n" + "*" * shutil.get_terminal_size().columns)
 
     dataframe.copy().sub_optimization(
         borders={"bigger": [[2, 550], [3, 200]]},
         key_criterion_index=1
     )
+    print("\n" + "*" * shutil.get_terminal_size().columns)
 
     dataframe.copy().lexicographic_optimization([4, 0, 1, 2, 3])
 
 
 def lexicographic_optimization(self: pd.DataFrame,
                                criterion_importance_index: list,
+                               show_optimized: bool = True,
                                show_result: bool = True) -> pd.DataFrame | None:
     """ Searches for the optimal solution in the given order of importance of the criteria """
-    if len(set(criterion_importance_index)) != self.shape[1]:
+    if len(set(criterion_importance_index)) > self.shape[1]:
         raise ValueError("Wrong criterion importance list")
+    
+    optimized_elements = self.optimize()
+    if show_optimized:
+        optimized = self.iloc[optimized_elements]
+        optimized.normalize(ASPIRATIONS)
+        optimized.show("Optimized")
 
     result = pd.DataFrame(self)
     for criterion in criterion_importance_index:
@@ -55,16 +64,22 @@ def lexicographic_optimization(self: pd.DataFrame,
 def sub_optimization(self: pd.DataFrame,
                      borders: dict[str, list[list[float, float]]],
                      key_criterion_index: int,
-                     show_border_optimized: bool = True,
+                     show_optimized: bool = True,
                      show_result: bool = True) -> pd.DataFrame | None:
     """ Finds the optimal solution according to the main criterion, which is suitable for additional conditions """
+    optimized_elements = self.optimize()
+    if show_optimized:
+        optimized = self.iloc[optimized_elements]
+        optimized.normalize(ASPIRATIONS)
+        optimized.show("Optimized")
+
     border_optimized_elements = self.get_optimal_range(borders)
     if len(border_optimized_elements) == 0:
         print("Failed to optimize the set using boundaries")
         return
 
     border_optimized = self.iloc[border_optimized_elements]
-    if show_border_optimized:
+    if show_optimized:
         border_optimized.normalize(ASPIRATIONS)
         border_optimized.show("Border optimized")
 
