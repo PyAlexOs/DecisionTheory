@@ -68,9 +68,9 @@ def sub_optimization(self: pd.DataFrame,
         border_optimized.normalize(ASPIRATIONS)
         border_optimized.show("Border optimized")
 
+    result_element = border_optimized.iloc[:, key_criterion_index].idxmax()
     if not ASPIRATIONS[key_criterion_index]:
         result_element = border_optimized.iloc[:, key_criterion_index].idxmin()
-    result_element = border_optimized.iloc[:, key_criterion_index].idxmax()
 
     result = border_optimized.loc[[result_element]]
     if show_result:
