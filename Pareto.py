@@ -1,48 +1,31 @@
 import pandas as pd
 import shutil
+from numbers import Number
 
-KEYS = ["Стоимость машины",
-        "Расход топлива",
-        "Вместительность багажника",
-        "Мощность двигателя",
-        "Клиренс"]
-TABLE = [['Mazda CX-5', 4.1, 7.1, 565, 165, 235],
-         ['Toyota Land Cruiser Prado', 4.1, 11.0, 550, 163, 235],
-         ['Audi A4', 4.1, 7.1, 570, 245, 235],
-         ['Kia Sportage', 3.2, 8.2, 540, 150, 181],
-         ['Volvo XC90', 5.6, 5.7, 721, 249, 235],
-         ['Subaru Outback', 5.6, 7.3, 522, 188, 213],
-         ['Nissan X-Trail', 2.2, 5.3, 497, 225, 230],
-         ['Mercedes GLC', 5.1, 5.5, 620, 197, 180],
-         ['Jeep Wrangler', 4.9, 11.3, 142, 225, 220],
-         ['УАЗ Патриот', 1.9, 11.2, 1130, 225, 225]]
 ASPIRATIONS = [False, False, True, True, True]
 
 
 def main():
-    data = dict(zip(KEYS, [[TABLE[row][col]
-                            for row in range(len(TABLE))]
-                           for col in range(len(TABLE[0]))][1:]))
-
-    dataframe = pd.DataFrame(data=data, index=[f'A{i}' for i in range(1, 11)])
+    dataframe = pd.read_csv('alternatives.csv')
+    dataframe.index = [f'A{i}' for i in range(1, 11)]
+    dataframe = dataframe.iloc[:,1:]
     dataframe.show("Alternatives")
-
     dataframe.normalize(ASPIRATIONS)
     dataframe.show("Normalized")
 
-    dataframe.border_optimization(
+    dataframe.copy().border_optimization(
         borders={
             "<": [[0, 4.5], [3, 200]],
             "bigger": [[2, 500], [4, 200]]
         }
     )
 
-    """dataframe.sub_optimization(
+    dataframe.copy().sub_optimization(
         borders={"bigger": [[2, 550], [3, 200]]},
         key_criterion_index=1
-    )"""
+    )
 
-    """dataframe.lexicographic_optimization([4, 0, 1, 2, 3])"""
+    dataframe.copy().lexicographic_optimization([4, 0, 1, 2, 3])
 
 
 def lexicographic_optimization(self: pd.DataFrame,
@@ -61,8 +44,6 @@ def lexicographic_optimization(self: pd.DataFrame,
         for index, row in result.iterrows():
             if row.iloc[criterion] < best.iloc[criterion]:
                 result.drop(index, inplace=True)
-                if result.count().iloc[0] == 1:
-                    break
 
     if show_result:
         result.normalize(ASPIRATIONS)
@@ -87,9 +68,9 @@ def sub_optimization(self: pd.DataFrame,
         border_optimized.normalize(ASPIRATIONS)
         border_optimized.show("Border optimized")
 
-    result_element = border_optimized.iloc[:, key_criterion_index].idxmax()
     if not ASPIRATIONS[key_criterion_index]:
         result_element = border_optimized.iloc[:, key_criterion_index].idxmin()
+    result_element = border_optimized.iloc[:, key_criterion_index].idxmax()
 
     result = border_optimized.loc[[result_element]]
     if show_result:
@@ -146,14 +127,14 @@ def get_optimal_range(self: pd.DataFrame,
             raise KeyError('The keys can only be as follows: ["bigger", ">", "smaller", "<", "equals", "="]')
 
         if not isinstance(value, list) or len(value) == 0:
-            raise ValueError('The value must be a dict like {condition: [[param_index_1, number_1], ...], ...}')
+            raise ValueError('The value must be a dict like {condition: [[param_index_1, border_1], ...], ...}')
 
         for condition in value:
             if (not isinstance(condition, list) or
                     len(condition) != 2 or
                     condition[0] not in range(0, self.shape[1]) or
-                    not all([i.isdigit() or i == "." for i in str(condition[1])])):
-                raise ValueError('The value must be a list like: [param_index, number]')
+                    not isinstance(condition[1], Number)):
+                raise ValueError('The value must be a list like: [param_index, border]')
 
             convert = False
             if not ASPIRATIONS[condition[0]]:
@@ -183,25 +164,24 @@ def optimize(self: pd.DataFrame,
         """ Compares alternatives by criteria in pairs, returns a matrix reflecting the superiority of row over col, taking into account incomparable alternatives """
         result = [["x" for _ in range(self.shape[0])] for _ in range(self.shape[0])]
         incomparable_elements = [i for i in range(self.shape[0])]
+
+        def mark_as_comparable(alt):
+            if alt in incomparable_elements:
+                incomparable_elements.remove(alt)
+
         for alt_1 in range(self.shape[0]):
             for alt_2 in range(alt_1 + 1, self.shape[0]):
                 if (self.iloc[alt_1].values >= self.iloc[alt_2].values).all():
                     result[alt_2][alt_1] = self.index.values[alt_1]
                     elements.add(alt_1)
-
-                    if alt_1 in incomparable_elements:
-                        incomparable_elements.remove(alt_1)
-                    if alt_2 in incomparable_elements:
-                        incomparable_elements.remove(alt_2)
+                    mark_as_comparable(alt_1)
+                    mark_as_comparable(alt_2)
 
                 elif (self.iloc[alt_1].values <= self.iloc[alt_2].values).all():
                     result[alt_2][alt_1] = self.index.values[alt_2]
                     elements.add(alt_2)
-
-                    if alt_1 in incomparable_elements:
-                        incomparable_elements.remove(alt_1)
-                    if alt_2 in incomparable_elements:
-                        incomparable_elements.remove(alt_2)
+                    mark_as_comparable(alt_1)
+                    mark_as_comparable(alt_2)
 
                 else:
                     result[alt_2][alt_1] = "н"
@@ -242,7 +222,6 @@ if __name__ == "__main__":
     pd.DataFrame.sub_optimization = sub_optimization
     pd.DataFrame.border_optimization = border_optimization
     pd.DataFrame.get_optimal_range = get_optimal_range
-
     pd.DataFrame.optimize = optimize
     pd.DataFrame.normalize = normalize
     pd.DataFrame.show = show
