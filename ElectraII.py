@@ -3,37 +3,20 @@ import numpy as np
 import graphviz as gv
 import shutil
 
-KEYS = ["Стоимость машины",
-        "Расход топлива",
-        "Вместительность багажника",
-        "Мощность двигателя",
-        "Клиренс"]
-COST = [5, 4, 3, 3, 2]
 RANKS = [{2.5, 3.5, 4.5, 5.5},
          {6., 7.5, 9.},
          {500., 600.},
          {170., 200., 230.},
          {200., 220., 230.}]
-TABLE = [['Mazda CX-5', 4.1, 7.1, 565, 165, 235],
-         ['Toyota Land Cruiser Prado', 4.1, 11.0, 550, 163, 235],
-         ['Audi A4', 4.1, 7.1, 570, 245, 235],
-         ['Kia Sportage', 3.2, 8.2, 540, 150, 181],
-         ['Volvo XC90', 5.6, 5.7, 721, 249, 235],
-         ['Subaru Outback', 5.6, 7.3, 522, 188, 213],
-         ['Nissan X-Trail', 2.2, 5.3, 497, 225, 230],
-         ['Mercedes GLC', 5.1, 5.5, 620, 197, 180],
-         ['Jeep Wrangler', 4.9, 11.3, 142, 225, 220],
-         ['УАЗ Патриот', 1.9, 11.2, 1130, 225, 225]]
+COST = [5, 4, 3, 3, 2]
 ASPIRATIONS = [False, False, True, True, True]
 THRESHOLD = 1.5
 
 
 def main():
-    data = dict(zip(KEYS, [[TABLE[row][col]
-                            for row in range(len(TABLE))]
-                           for col in range(len(TABLE[0]))][1:]))
-
-    dataframe = pd.DataFrame(data=data, index=[f'A{i}' for i in range(1, 11)])
+    dataframe = pd.read_csv('alternatives.csv')
+    dataframe.index = [f'A{i}' for i in range(1, 11)]
+    dataframe = dataframe.iloc[:, 1:]
     dataframe.show("Alternatives")
 
     ranged = dataframe.range_rank(RANKS, COST)
@@ -45,14 +28,26 @@ def main():
     optimized = dataframe.iloc[sum(hierarchy, [])]
     optimized.show("Sorted alternatives")
 
+    for (i, level) in enumerate(hierarchy, start=1):
+        if len(level) == 0:
+            break
+        print(f"{i}-й уровень: {", ".join([str(j + 1) for j in level])}")
+
 
 def threshold_preferences(preferences: np.ndarray[float],
+                          show_thresholded: bool = True,
                           threshold: float = 1) -> tuple[np.ndarray[float], list[list[int]]]:
     """ Removes weak edges from the graph, sorts alternatives """
     for row in range(preferences.shape[0]):
         for col in range(preferences.shape[1]):
             if preferences[row, col] < threshold:
                 preferences[row, col] = 0
+
+    if show_thresholded:
+        p = pd.DataFrame(preferences, index=[f"A{i}" for i in range(1, len(preferences) + 1)], columns=[f"A{i}" for i in range(1, len(preferences) + 1)])
+        p.replace(np.inf, "∞", inplace=True)
+        p.replace(0, "–", inplace=True)
+        p.show("Thresholded preference weights")
 
     # add heads
     result: list[set[int]] = [set() for _ in range(len(preferences))]
@@ -92,7 +87,7 @@ def make_graph(preferences: np.ndarray[float],
             if preferences[row, col] >= threshold:
                 graph.edge(str(row + 1), str(col + 1))
 
-    graph.render(f'files/preference_graph(threshold-{threshold}).gv', view=True)
+    graph.render(f'graph/preference_graph(threshold-{threshold}).gv', view=False)
 
 
 def get_matrix(self: pd.DataFrame,
@@ -101,7 +96,7 @@ def get_matrix(self: pd.DataFrame,
                show_matrix: bool = True,
                show_weights: bool = True) -> np.ndarray[float]:
     """ Getting a matrix with preference weights """
-    matrix = np.full((self.shape[0], self.shape[0]), "x", dtype=np.dtype("U4"))
+    matrix = np.full((self.shape[0], self.shape[0]), "–", dtype=np.dtype("U4"))
     for i, (_, alt_1) in enumerate(self.iterrows()):
         for j, (_, alt_2) in enumerate(self.iloc[i + 1:].iterrows(), i + 1):
             if show_weights:
@@ -117,15 +112,12 @@ def get_matrix(self: pd.DataFrame,
                         (alt_1.iloc[col] > alt_2.iloc[col] and not aspirations[col])):
                     n.append(cost[col])
                     p.append(0)
-
                 else:
                     n.append(0)
                     p.append(0)
 
             # for the report
             if sum(p) == sum(n):
-                matrix[i, j] = "–"
-                matrix[j, i] = "–"
                 if show_weights:
                     print(f"P{i + 1}{j + 1} = {" + ".join(list(map(lambda x: str(x), p)))} = {sum(p)}")
                     print(f"N{i + 1}{j + 1} = {" + ".join(list(map(lambda x: str(x), n)))} = {sum(n)}")
@@ -177,7 +169,7 @@ def get_matrix(self: pd.DataFrame,
         for col in range(matrix.shape[1]):
             if matrix[row, col] in ["–", "x"]:
                 continue
-            if matrix[row, col] == "∞":
+            elif matrix[row, col] == "∞":
                 preferences[row, col] = np.inf
             else:
                 preferences[row, col] = matrix[row, col]
@@ -190,7 +182,6 @@ def range_rank(self: pd.DataFrame,
                cost: list[int],
                show_rank: bool = True) -> pd.DataFrame:
     """ Ranks the criteria according to the cost scale, taking into account the boundaries """
-    is_ranged = np.full((self.shape[0], self.shape[1]), False)
     ranged = self.copy(deep=True)
 
     for col, rank in enumerate(ranks):
@@ -199,14 +190,10 @@ def range_rank(self: pd.DataFrame,
         rank.append(np.inf)
 
         for border in range(len(rank) - 1):
-            for row_number, (_, row) in enumerate(ranged.iterrows()):
-                if not is_ranged[row_number, col]:
-                    if rank[border] <= row.iloc[col] < rank[border + 1]:
-                        ranged.iloc[row_number, col] = (np.arange(start=cost[col],
-                                                                  stop=(cost[col] * len(rank)),
-                                                                  step=cost[col]))[border]
-                        is_ranged[row_number, col] = True
-
+            ranged.iloc[(self.iloc[:, col] >= rank[border]) &
+                        (self.iloc[:, col] <= rank[border + 1]), col] =\
+            (np.arange(start=cost[col], stop=(cost[col] * len(rank)), step=cost[col]))[border]
+        
     if show_rank:
         ranged.show("Ranked")
 
