@@ -198,6 +198,7 @@ def parse_table_from_word(string: str) -> np.ndarray[np.ndarray[Fraction]]:
 def main():
     # CRITERIA_2_LEVEL = parse_table_from_word(""" Table from word """)
     # CRITERIA_3_LEVEL = list(map(parse_table_from_word, [""" Table from word """, """ Another table from word """, ...]))
+    # print(np.array([list(map(lambda x: float(x), i)) for i in CRITERIA_2_LEVEL]))
     
     pipeline = MatrixPipeline()
     pipeline.make_report(np.array(CRITERIA_2_LEVEL))
