@@ -1,4 +1,5 @@
 import numpy as np
+from statistics import geometric_mean as g_mean
 from fractions import Fraction
 import functools
 import shutil
@@ -68,7 +69,7 @@ class MatrixPipeline:
         consistency = consistency_index / MatrixPipeline.random_consistency[len(priority_vector)]
 
         if output:
-            print(f"Consistency: {consistency}")
+            print(f"Consistency: {round(consistency, 3)}")
         if consistency <= 0.1:
             if output:
                 print("The matrix is consistent")
@@ -81,7 +82,7 @@ class MatrixPipeline:
     @staticmethod
     def g_mean(elements: np.ndarray[float]) -> float:
         """ Calculates the geometric mean of the array """
-        return np.exp(np.log(elements).mean())
+        return g_mean(elements)
 
     @staticmethod
     def normalize(g_means: np.ndarray[float]) -> np.ndarray[float]:
@@ -210,7 +211,13 @@ def main():
     criteria_vectors = np.array([pipeline.get_priority_vector(np.array(criteria_vec, dtype=float))
                                 for criteria_vec in CRITERIA_3_LEVEL])
     
-    preferences = rank(priority_vector, criteria_vectors)
+    print(f'\nВектор приоритетов второго уровня иерархии:\n{priority_vector}')
+    MatrixPipeline.check_consistency(np.array(CRITERIA_2_LEVEL), output=True)
+    for (i, vec) in enumerate(criteria_vectors, start=1):
+        print(f'\nВектор приоритетов третьего уровня иерархии критерия К{i}:\n{vec}')
+        MatrixPipeline.check_consistency(np.array(CRITERIA_3_LEVEL[i - 1]), output=True)
+    
+    preferences = rank(priority_vector, criteria_vectors, show_report=False)
     print("\n", *sorted([(name, round(rate, 3)) for name, rate in zip(NAMES, preferences)],
                   reverse=True, key=lambda x: x[1]), sep="\n")
 
